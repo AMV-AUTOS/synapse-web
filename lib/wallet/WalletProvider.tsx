@@ -1,5 +1,12 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ensureWalletKitInitialized,
   StellarWalletsKit,
@@ -7,6 +14,12 @@ import {
   clearSelectedWalletId,
   getStoredWalletId,
 } from "./kit";
+import {
+  signingQueue,
+  EMPTY_SIGNING_QUEUE_STATE,
+  type SigningQueueState,
+  type SigningRequest,
+} from "./signingQueue";
 
 export type QrPairingStatus = "idle" | "waiting" | "connecting" | "connected" | "failed";
 
@@ -35,6 +48,12 @@ interface WalletContextValue {
   qrPairingError: string | null;
   startQrPairing: () => Promise<void>;
   cancelQrPairing: () => void;
+  /** Enqueue a wallet-signature request; serialized app-wide, FIFO. */
+  enqueueSigning: <T>(request: Omit<SigningRequest<T>, "id"> & { id?: string }) => Promise<T>;
+  /** Cancel all signing requests that have not started yet. */
+  cancelPendingSignings: () => number;
+  /** Current signing-queue progress ("N of M") and per-item status. */
+  signingQueueState: SigningQueueState;
 }
 
 const WalletContext = createContext<WalletContextValue>({
@@ -54,6 +73,9 @@ const WalletContext = createContext<WalletContextValue>({
   qrPairingError: null,
   startQrPairing: async () => {},
   cancelQrPairing: () => {},
+  enqueueSigning: () => Promise.reject(new Error("WalletProvider is not mounted")),
+  cancelPendingSignings: () => 0,
+  signingQueueState: EMPTY_SIGNING_QUEUE_STATE,
 });
 
 export function useWallet() {
@@ -70,6 +92,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [qrPairingUri, setQrPairingUri] = useState<string | null>(null);
   const [qrPairingStatus, setQrPairingStatus] = useState<QrPairingStatus>("idle");
   const [qrPairingError, setQrPairingError] = useState<string | null>(null);
+  const [signingQueueState, setSigningQueueState] = useState<SigningQueueState>(
+    EMPTY_SIGNING_QUEUE_STATE,
+  );
+
+  useEffect(() => signingQueue.subscribe(setSigningQueueState), []);
+
+  const enqueueSigning = useCallback(
+    <T,>(request: Omit<SigningRequest<T>, "id"> & { id?: string }) =>
+      signingQueue.enqueue<T>(request),
+    [],
+  );
+
+  const cancelPendingSignings = useCallback(() => signingQueue.cancelPending(), []);
 
   const syncSession = useCallback(async () => {
     const { address: currentAddress } = await StellarWalletsKit.getAddress();
@@ -195,6 +230,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         qrPairingError,
         startQrPairing,
         cancelQrPairing,
+        enqueueSigning,
+        cancelPendingSignings,
+        signingQueueState,
       }}
     >
       {children}
