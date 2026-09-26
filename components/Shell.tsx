@@ -5,6 +5,7 @@ import { TransactionsTab } from "./transactions/TransactionsTab";
 import { AdminTab } from "./admin/AdminTab";
 import { DocsTab } from "./docs/DocsTab";
 import { TabErrorBoundary } from "@/components/ui/TabErrorBoundary";
+import { SessionAuditPanel } from "@/components/wallet/SessionAuditPanel";
 import { AMBER, BG1, BORDER, DIM, MONO, STATUS_META } from "@/lib/constants";
 import { useSorobanStatus } from "@/lib/soroban/useSorobanStatus";
 import { useWallet } from "@/lib/wallet/WalletProvider";
@@ -81,6 +82,7 @@ export function Shell() {
               transition: "all 0.3s",
             }}
           />
+          {connected && <SessionAuditPanel />}
           <button
             onClick={() => (connected ? disconnect() : connect())}
             disabled={connecting}
