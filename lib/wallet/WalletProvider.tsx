@@ -8,6 +8,8 @@ import {
   getStoredWalletId,
 } from "./kit";
 
+export type QrPairingStatus = "idle" | "waiting" | "connecting" | "connected" | "failed";
+
 interface WalletContextValue {
   address: string | null;
   provider: string | null;
@@ -16,6 +18,11 @@ interface WalletContextValue {
   error: string | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
+  qrPairingUri: string | null;
+  qrPairingStatus: QrPairingStatus;
+  qrPairingError: string | null;
+  startQrPairing: () => Promise<void>;
+  cancelQrPairing: () => void;
 }
 
 const WalletContext = createContext<WalletContextValue>({
@@ -26,6 +33,11 @@ const WalletContext = createContext<WalletContextValue>({
   error: null,
   connect: async () => {},
   disconnect: async () => {},
+  qrPairingUri: null,
+  qrPairingStatus: "idle",
+  qrPairingError: null,
+  startQrPairing: async () => {},
+  cancelQrPairing: () => {},
 });
 
 export function useWallet() {
@@ -38,6 +50,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [network, setNetwork] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qrPairingUri, setQrPairingUri] = useState<string | null>(null);
+  const [qrPairingStatus, setQrPairingStatus] = useState<QrPairingStatus>("idle");
+  const [qrPairingError, setQrPairingError] = useState<string | null>(null);
 
   const syncSession = useCallback(async () => {
     const { address: currentAddress } = await StellarWalletsKit.getAddress();
@@ -89,11 +104,58 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setAddress(null);
     setProvider(null);
     setNetwork(null);
+    setQrPairingUri(null);
+    setQrPairingStatus("idle");
+    setQrPairingError(null);
+  }, []);
+
+  const startQrPairing = useCallback(async () => {
+    ensureWalletKitInitialized();
+    setQrPairingError(null);
+    setQrPairingStatus("waiting");
+    try {
+      const kit = StellarWalletsKit as unknown as {
+        getQrPairingUri?: () => Promise<string> | string;
+      };
+      const uri = await kit.getQrPairingUri?.();
+      if (!uri) {
+        setQrPairingStatus("failed");
+        setQrPairingError("QR pairing is not supported by the selected wallet module.");
+        return;
+      }
+      setQrPairingUri(uri);
+      setQrPairingStatus("connecting");
+      await syncSession();
+      storeSelectedWalletId(StellarWalletsKit.selectedModule.productId);
+      setQrPairingStatus("connected");
+    } catch (err) {
+      setQrPairingStatus("failed");
+      setQrPairingError(err instanceof Error ? err.message : "QR pairing failed");
+    }
+  }, [syncSession]);
+
+  const cancelQrPairing = useCallback(() => {
+    setQrPairingUri(null);
+    setQrPairingStatus("idle");
+    setQrPairingError(null);
   }, []);
 
   return (
     <WalletContext.Provider
-      value={{ address, provider, network, connecting, error, connect, disconnect }}
+      value={{
+        address,
+        provider,
+        network,
+        connecting,
+        error,
+        connect,
+        disconnect,
+        qrPairingUri,
+        qrPairingStatus,
+        qrPairingError,
+        startQrPairing,
+        cancelQrPairing,
+      }}
     >
       {children}
     </WalletContext.Provider>
