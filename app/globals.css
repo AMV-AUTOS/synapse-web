@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-theme="dark"] {
   --bg0: #0a0b0d;
   --bg1: #0f1115;
   --bg2: #14171d;
@@ -11,10 +12,27 @@
   --amber-dim: rgba(245, 166, 35, 0.12);
   --border: rgba(245, 166, 35, 0.15);
   --dim: rgba(255, 255, 255, 0.35);
+  --fg: #ffffff;
   --pending: #f5a623;
   --processing: #4fc3f7;
   --completed: #66bb6a;
   --failed: #ef5350;
+}
+
+[data-theme="light"] {
+  --bg0: #f7f7f5;
+  --bg1: #ffffff;
+  --bg2: #f0f0ee;
+  --bg3: #e6e6e3;
+  --amber: #b26a00;
+  --amber-dim: rgba(178, 106, 0, 0.12);
+  --border: rgba(0, 0, 0, 0.14);
+  --dim: rgba(0, 0, 0, 0.55);
+  --fg: #14171d;
+  --pending: #b26a00;
+  --processing: #0277bd;
+  --completed: #2e7d32;
+  --failed: #c62828;
 }
 
 * {
@@ -23,7 +41,7 @@
 
 body {
   background: var(--bg0);
-  color: #fff;
+  color: var(--fg);
   /* Defined by next/font in app/layout.tsx; see MONO in lib/constants.ts. */
   font-family: var(--font-ibm-plex-mono), monospace;
   min-height: 100vh;
@@ -102,6 +120,10 @@ body {
     rgba(0, 0, 0, 0.04) 4px
   );
   z-index: 9999;
+}
+
+[data-theme="light"] .scanline-overlay::before {
+  display: none;
 }
 
 /* Responsive Layout Classes */

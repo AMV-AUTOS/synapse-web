@@ -85,6 +85,37 @@ take over — see `lib/soroban/transactionMerge.ts` and `lib/soroban/useLiveCont
 
 ---
 
+## Runtime Contract Switcher & Multi-Deployment Tracking
+
+The dashboard allows tracking and switching between multiple deployed Soroban contract IDs at runtime (for example, switching between a personal Testnet deployment and a shared staging deployment) without requiring environment changes or frontend rebuilds.
+
+### Features
+- **Contract-Switcher UI**: Integrated directly into the shell header with dropdown navigation, tracked deployments list, active badge indicators, and "+ ADD CONTRACT ID" form.
+- **LocalStorage Persistence**: Contract selections and custom added deployments are persisted across browser reloads via `localStorage` (matching the pattern in `lib/wallet/storage.ts`).
+- **Clean Re-scoping & Zero Stale-Data Leakage**:
+  - Switching contracts tears down the existing `lib/soroban/events.ts` poller and establishes a fresh one scoped to the new contract ID.
+  - Event poller cursors in `localStorage` are scoped per contract ID (`soroban-event-cursor:<contractId>`), ensuring event feeds never collide.
+  - `useLiveTransactions` immediately wipes cached enrichment state and resets fetch registries upon contract switch.
+  - `useLiveContractInfo` immediately wipes previous live health/version state and cancels any pending in-flight read requests.
+  - `AdminTab`, `TransactionsTab`, and `TxDetailModal` automatically route all simulations and contract invocations to the active contract ID.
+
+### Demonstration: Switching Live Between Two Testnet Instances
+1. **Initial Contract A (Shared Testnet)**:
+   - Select or configure Contract A: `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`.
+   - The contract info panel reflects Contract A's address and simulated `health()`/`version()`.
+   - Live events from Contract A are streamed into the pipeline and transaction tables.
+2. **Switching to Contract B (Personal Testnet)**:
+   - Click the **CONTRACT: ...** switcher in the header.
+   - Click **+ ADD CONTRACT ID** and enter Contract B: `CA3D5KRYMCMCZKPO722ECQQQ3QHOFGT2TJNITW5OECVOAQCEK7ALISVN` with label `Personal Testnet`.
+   - Click **Save & Switch**.
+   - Contract A's event poller is torn down and stopped immediately.
+   - All displayed events and enriched transaction state from Contract A are flushed to avoid stale leakage.
+   - Poller for Contract B connects with its own scoped cursor and starts polling Contract B.
+   - Contract info panel switches to Contract B, resetting old fields and re-fetching `health()` and `version()` for Contract B.
+   - Your selection is remembered in `localStorage` on page reload.
+
+---
+
 ## Getting started
 
 ```bash
@@ -93,9 +124,7 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The app starts on the
-**dashboard** tab showing mock data. Connect a Freighter or xBull wallet and set
-`NEXT_PUBLIC_CONTRACT_ID` (plus optionally `NEXT_PUBLIC_SOROBAN_RPC_URL`) to switch
-to live contract data instead.
+**dashboard** tab. Connect a Freighter or xBull wallet and use the runtime **CONTRACT** switcher in the header (or configure `NEXT_PUBLIC_CONTRACT_ID` / `NEXT_PUBLIC_SOROBAN_RPC_URL` in `.env.local`) to interact with live Testnet contracts.
 
 Other scripts:
 

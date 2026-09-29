@@ -1,15 +1,16 @@
 "use client";
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { AMBER, BG2, DIM, MONO } from "@/lib/constants";
+import { toastQueue, type QueuedToast, type ToastType } from "@/lib/toast/toastQueue";
 
 export interface Toast {
   id: string;
   message: string;
-  type?: "success" | "error" | "info";
+  type?: ToastType;
 }
 
 interface ToastContextType {
-  toast: (message: string, type?: Toast["type"]) => void;
+  toast: (message: string, type?: ToastType) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -23,20 +24,18 @@ export function useToast() {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toasts, setToasts] = useState<QueuedToast[]>([]);
 
-  const toast = useCallback((message: string, type: Toast["type"] = "success") => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+  useEffect(() => {
+    return toastQueue.subscribe(setToasts);
+  }, []);
 
-    // Auto dismiss after 3 seconds
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+  const toast = useCallback((message: string, type: ToastType = "success") => {
+    toastQueue.push(message, type);
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    toastQueue.dismiss(id);
   }, []);
 
   return (

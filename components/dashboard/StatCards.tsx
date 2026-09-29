@@ -1,13 +1,15 @@
 "use client";
 import { Panel } from "@/components/ui/Panel";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { DIM, MONO, NEUTRAL, STATUS_META } from "@/lib/constants";
 import type { Transaction } from "@/lib/types";
 
 interface StatCardsProps {
   txs: Transaction[];
+  loading?: boolean;
 }
 
-export function StatCards({ txs }: StatCardsProps) {
+export function StatCards({ txs, loading = false }: StatCardsProps) {
   const counts = { PENDING: 0, PROCESSING: 0, COMPLETED: 0, FAILED: 0 };
   txs.forEach((t) => {
     counts[t.status]++;
@@ -50,21 +52,32 @@ export function StatCards({ txs }: StatCardsProps) {
           >
             {c.label}
           </div>
-          <div
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              fontFamily: MONO,
-              color: c.color,
-              lineHeight: 1,
-              marginBottom: 4,
-            }}
-          >
-            {c.value}
-          </div>
-          <div style={{ fontSize: 10, color: DIM, fontFamily: MONO }}>
-            {c.sub}
-          </div>
+          {loading ? (
+            <>
+              <div style={{ marginBottom: 4 }}>
+                <Skeleton variant="block" width={48} height={28} radius={4} />
+              </div>
+              <Skeleton variant="block" width={90} height={10} radius={3} />
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  fontSize: 28,
+                  fontWeight: 700,
+                  fontFamily: MONO,
+                  color: c.color,
+                  lineHeight: 1,
+                  marginBottom: 4,
+                }}
+              >
+                {c.value}
+              </div>
+              <div style={{ fontSize: 10, color: DIM, fontFamily: MONO }}>
+                {c.sub}
+              </div>
+            </>
+          )}
         </Panel>
       ))}
     </div>

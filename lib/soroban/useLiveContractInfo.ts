@@ -2,31 +2,36 @@
 import { useEffect, useState } from "react";
 import { scValToNative } from "@stellar/stellar-sdk";
 import { simulateContractCall } from "./contract";
+import { useSoroban } from "./SorobanProvider";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { MOCK_CONTRACT_INFO } from "@/lib/mock-data";
 import type { ContractInfo } from "@/lib/types";
 
 const RPC_URL = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
-const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID;
 
 /**
  * Reads health() and version() from a real contract via read-only
  * simulation once a wallet is connected. Falls back to the mock baseline
  * (and stays there) when no contract is configured or no wallet is
- * connected — there's no getter for admin/relay_signer in the current
- * ABI, so those fields always come from the mock/env baseline.
+ * connected.
+ *
+ * When contractId changes, previous live readings are wiped immediately
+ * to prevent stale information from persisting into the newly selected contract.
  */
 export function useLiveContractInfo(): ContractInfo {
+  const { contractId } = useSoroban();
   const { address } = useWallet();
   const [live, setLive] = useState<Partial<ContractInfo>>({});
 
   useEffect(() => {
-    if (!address || !CONTRACT_ID) return;
+    // Reset live data immediately when contractId or address changes
+    setLive({});
+    if (!address || !contractId) return;
     let cancelled = false;
 
     async function readField(method: "health" | "version") {
       try {
-        const simulated = await simulateContractCall(RPC_URL, CONTRACT_ID!, address!, method);
+        const simulated = await simulateContractCall(RPC_URL, contractId!, address!, method);
         if (cancelled || !simulated.result) return;
         const value = scValToNative(simulated.result.retval);
         if (typeof value === "string") {
@@ -43,11 +48,11 @@ export function useLiveContractInfo(): ContractInfo {
     return () => {
       cancelled = true;
     };
-  }, [address]);
+  }, [address, contractId]);
 
   return {
     ...MOCK_CONTRACT_INFO,
-    address: CONTRACT_ID ?? MOCK_CONTRACT_INFO.address,
+    address: contractId ?? MOCK_CONTRACT_INFO.address,
     ...live,
   };
 }

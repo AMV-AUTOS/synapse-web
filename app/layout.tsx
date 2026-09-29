@@ -75,7 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           <SorobanProvider
             rpcUrl={process.env.NEXT_PUBLIC_SOROBAN_RPC_URL}
-            contractId={process.env.NEXT_PUBLIC_CONTRACT_ID}
+            defaultContractId={process.env.NEXT_PUBLIC_CONTRACT_ID}
           >
             <WalletProvider>{children}</WalletProvider>
           </SorobanProvider>

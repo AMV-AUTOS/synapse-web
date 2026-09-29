@@ -8,12 +8,12 @@ import { ActionButton } from "@/components/ui/ActionButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { useWallet } from "@/lib/wallet/WalletProvider";
+import { useSoroban } from "@/lib/soroban/SorobanProvider";
 import { addressArg, invokeContract, simulateContractCall } from "@/lib/soroban/contract";
 import { shortId } from "@/lib/utils";
 import { AMBER, BORDER, DIM, MONO, STATUS_META } from "@/lib/constants";
 
 const RPC_URL = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
-const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,6 +134,7 @@ function AdminCard({
 
 export function AdminTab() {
   const { address, connect, mode } = useWallet();
+  const { contractId } = useSoroban();
   const { toast } = useToast();
 
   const isWatchOnly = mode === "watch";
@@ -143,8 +144,10 @@ export function AdminTab() {
       toast("Watch-only mode: connect a signing wallet to submit admin transactions", "error");
       return;
     }
-    if (!CONTRACT_ID) {
-      toast("NEXT_PUBLIC_CONTRACT_ID is not configured", "error");
+    if (!contractId) {
+      toast("No contract ID is currently selected or configured", "error");
+      return;
+    }
       return;
     }
     if (!address) {
@@ -158,7 +161,7 @@ export function AdminTab() {
     }
     try {
       const args = addresses.map(addressArg);
-      const result = await invokeContract(RPC_URL, CONTRACT_ID, address, method, args);
+      const result = await invokeContract(RPC_URL, contractId, address, method, args);
       toast(
         `${method}() ${result.status === "SUCCESS" ? "succeeded" : "failed"} · tx ${shortId(result.hash)}`,
         result.status === "SUCCESS" ? "success" : "error"
@@ -169,8 +172,8 @@ export function AdminTab() {
   }
 
   async function runDiagnostic(method: string) {
-    if (!CONTRACT_ID) {
-      toast("NEXT_PUBLIC_CONTRACT_ID is not configured", "error");
+    if (!contractId) {
+      toast("No contract ID is currently selected or configured", "error");
       return;
     }
     if (!address) {
@@ -179,7 +182,7 @@ export function AdminTab() {
       return;
     }
     try {
-      const simulated = await simulateContractCall(RPC_URL, CONTRACT_ID, address, method);
+      const simulated = await simulateContractCall(RPC_URL, contractId, address, method);
       const value = simulated.result ? scValToNative(simulated.result.retval) : undefined;
       toast(`${method}() → ${JSON.stringify(value)}`, "info");
     } catch (err) {

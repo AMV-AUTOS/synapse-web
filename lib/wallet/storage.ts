@@ -22,3 +22,26 @@ export function clearSelectedWalletId(): void {
     localStorage.removeItem(SELECTED_WALLET_KEY);
   } catch {}
 }
+
+/**
+ * Resolve the persisted wallet selection against the set of currently
+ * available wallet IDs. If the persisted wallet is no longer installed or
+ * available, the stale selection is cleared so we don't repeatedly attempt
+ * (and silently fail) a reconnect on every load.
+ *
+ * Returns the persisted wallet ID when it is still available, otherwise
+ * `undefined`.
+ */
+export function resolveStoredWalletId(
+  availableWalletIds: readonly string[],
+): string | undefined {
+  const storedId = getStoredWalletId();
+  if (!storedId) return undefined;
+
+  if (!availableWalletIds.includes(storedId)) {
+    clearSelectedWalletId();
+    return undefined;
+  }
+
+  return storedId;
+}

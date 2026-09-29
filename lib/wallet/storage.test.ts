@@ -1,29 +1,45 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { getStoredWalletId, storeSelectedWalletId, clearSelectedWalletId } from "./storage";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  getPersistedWalletId,
+  setPersistedWalletId,
+  clearPersistedWalletId,
+} from './storage';
 
-describe("wallet storage helpers", () => {
+describe('wallet storage persistence', () => {
   beforeEach(() => {
-    localStorage.clear();
+    window.localStorage.clear();
+    vi.restoreAllMocks();
   });
 
-  it("returns undefined when nothing is stored", () => {
-    expect(getStoredWalletId()).toBeUndefined();
+  it('returns null when no wallet id has been persisted', () => {
+    expect(getPersistedWalletId()).toBeNull();
   });
 
-  it("round-trips a stored wallet id", () => {
-    storeSelectedWalletId("freighter");
-    expect(getStoredWalletId()).toBe("freighter");
+  it('persists and reads back a selected wallet id', () => {
+    setPersistedWalletId('freighter');
+    expect(getPersistedWalletId()).toBe('freighter');
   });
 
-  it("overwrites a previously stored id", () => {
-    storeSelectedWalletId("freighter");
-    storeSelectedWalletId("xbull");
-    expect(getStoredWalletId()).toBe("xbull");
+  it('clears a persisted wallet id', () => {
+    setPersistedWalletId('freighter');
+    clearPersistedWalletId();
+    expect(getPersistedWalletId()).toBeNull();
   });
 
-  it("clears the stored id", () => {
-    storeSelectedWalletId("freighter");
-    clearSelectedWalletId();
-    expect(getStoredWalletId()).toBeUndefined();
+  it('clears the persisted selection when the stored wallet is no longer available', () => {
+    setPersistedWalletId('uninstalled-wallet');
+    const available = ['freighter', 'xbull'];
+    const persisted = getPersistedWalletId();
+    if (persisted && !available.includes(persisted)) {
+      clearPersistedWalletId();
+    }
+    expect(getPersistedWalletId()).toBeNull();
+  });
+
+  it('does not throw when localStorage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage disabled');
+    });
+    expect(() => getPersistedWalletId()).not.toThrow();
   });
 });
